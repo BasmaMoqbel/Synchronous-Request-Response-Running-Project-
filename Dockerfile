@@ -1,14 +1,21 @@
-# الخطوة 1: استخدام نسخة جافا 8 خفيفة ومستقرة لتشغيل النظام
-FROM amazoncorretto:8-alpine
-
-# الخطوة 2: تحديد مكان العمل داخل الحاوية
+# الخطوة 1: بيئة بناء المشروع باستخدام مايفن وجافا 8
+FROM maven:3.8.6-openjdk-8 AS build
 WORKDIR /app
 
-# الخطوة 3: نسخ ملف الـ jar المولد من مشروعك إلى داخل الحاوية
-COPY target/*.jar app.jar
+# نسخ ملفات الإعدادات والتحميل المسبق للمكتبات
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
 
-# الخطوة 4: فتح المنفذ الذي برمجنا الخدمة عليه
-EXPOSE 8085
+# نسخ الكود المصدري وبناء ملف الـ JAR
+COPY src ./src
+RUN mvn clean package -DskipTests
 
-# الخطوة 5: الأمر النهائي لتشغيل الـ Microservice
+# الخطوة 2: بيئة التشغيل الخفيفة والمستقرة
+FROM amazoncorretto:8-alpine
+WORKDIR /app
+
+# جلب ملف الـ JAR الذي تم بناؤه في الخطوة الأولى
+COPY --from=build /app/target/*.jar app.jar
+
+# تشغيل النظام
 ENTRYPOINT ["java", "-jar", "app.jar"]
